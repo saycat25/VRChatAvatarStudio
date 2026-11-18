@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VRChat Avatar Studio</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand"><span class="logo" aria-hidden="true"></span><b>VRChat Avatar Studio</b></div>
+  <div class="actions">
+    <button id="btnUndo" title="Desfazer (Ctrl+Z)" disabled>↶ Desfazer</button>
+    <button id="btnRedo" title="Refazer (Ctrl+Y)" disabled>↷ Refazer</button>
+    <button id="btnRandom" title="Gera uma aparência aleatória (mantém seus acessórios)">🎲 Aleatório</button>
+    <button id="btnSave" title="Salva todos os parâmetros e acessórios em um arquivo .json">Salvar preset</button>
+    <button id="btnLoad" title="Abre um preset salvo">Abrir preset</button>
+    <input id="fileLoad" type="file" accept=".json,application/json" hidden>
+    <button id="btnTheme" title="Alternar tema claro/escuro">◐ Tema</button>
+    <button id="btnExport" class="primary" title="Gera o pacote para o Unity (.vrcavatar.json, paleta, GLB, miniatura e manifesto)">Exportar pacote</button>
+  </div>
+</header>
+
+<main class="layout">
+  <aside class="left">
+    <nav class="tabs" role="tablist">
+      <button role="tab" class="tab on" data-tab="look">Aparência</button>
+      <button role="tab" class="tab" data-tab="parts">Acessórios <span id="partBadge" class="badge">0</span></button>
+      <button role="tab" class="tab" data-tab="ai">IA &amp; Modelos</button>
+      <button role="tab" class="tab" data-tab="help">Como usar</button>
+    </nav>
+    <section id="tab-look" class="pane on">
+      <div class="card" id="stylePresets">
+        <h3>Presets de estilo</h3>
+        <p class="hint">Aplicam uma combinação inicial de cabelo, roupas, acessórios e cores; personalize depois.</p>
+        <div class="chips">
+          <button data-style="anime">Anime VRChat</button><button data-style="kawaii">Kawaii</button>
+          <button data-style="streetwear">Streetwear</button><button data-style="fantasy">Fantasia</button>
+          <button data-style="futuristic">Cyberpunk</button>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Paletas salvas</h3>
+        <p class="hint">Guarde e reutilize conjuntos de cores no navegador atual.</p>
+        <div class="row"><select id="paletteSelect" aria-label="Paletas salvas"></select>
+          <button id="paletteApply">Aplicar</button><button id="paletteSave">Salvar cores</button></div>
+      </div>
+    </section>
+    <section id="tab-parts" class="pane">
+      <div class="card">
+        <h3>Biblioteca de modelos</h3>
+        <p class="hint">Adicione acessórios ao avatar. Para personagens completos, use a geração de alta qualidade e ajuste o visual na aba Aparência.</p>
+        <input id="tplSearch" class="search" type="search" placeholder="Buscar na biblioteca…" aria-label="Buscar modelos na biblioteca">
+        <div class="row"><select id="tplSelect"></select><button id="tplAdd" class="primary">Adicionar</button></div>
+      </div>
+      <div class="card">
+        <h3>Criar do zero</h3>
+        <p class="hint">Combine formas simples para fazer qualquer objeto, ou importe um modelo <b>.obj</b>.</p>
+        <div id="shapeButtons" class="chips"></div>
+        <div class="row"><button id="objBtn">Importar .obj…</button><input id="objFile" type="file" accept=".obj,text/plain" hidden></div>
+        <p id="objMsg" class="hint"></p>
+      </div>
+      <div class="card">
+        <h3>Peças do avatar</h3>
+        <input id="partSearch" class="search" type="search" placeholder="Buscar peça ou grupo…" aria-label="Buscar peças">
+        <div id="partList" class="partlist"></div>
+        <p id="partEmpty" class="hint">Nenhuma peça ainda. Adicione um modelo da biblioteca ou crie uma forma.</p>
+      </div>
+      <div id="partEditor" class="card" hidden></div>
+    </section>
+    <section id="tab-ai" class="pane">
+      <div class="card ai-hero">
+        <h3>AI Avatar Workshop</h3>
+        <p class="hint">Envie sua base, roupas, cabelos, acessórios e referências. A IA trabalha em cópias; os arquivos originais ficam intactos.</p>
+      </div>
+      <div class="card">
+        <h3>1. Como a IA deve trabalhar?</h3>
+        <label class="mode-choice"><input type="radio" name="aiMode" id="aiModePreserve" value="preserve" checked>
+          <span><b>Preservar meu modelo</b><small>Protege corpo, rosto e esqueleto da base. A IA gera peças separadas de cabelo, roupas e acessórios.</small></span>
+        </label>
+        <label class="mode-choice"><input type="radio" name="aiMode" id="aiModePersonalize" value="personalize">
+          <span><b>Personalizar meu modelo</b><small>Permite trabalhar numa cópia para retexturizar ou remalhar. Mudanças arbitrárias de rosto/corpo ainda precisam de edição 3D/retarget.</small></span>
+        </label>
+        <div id="aiModeNotice" class="notice"></div>
+      </div>
+      <div class="card">
+        <h3>2. Seus modelos e arquivos</h3>
+        <label class="field-label" for="baseModelFile">Enviar modelo-base do avatar</label>
+        <div class="row"><input id="baseModelFile" type="file" accept=".glb,.gltf,.fbx,.obj,.stl,.vrm"></div>
+        <p class="hint">Preferência: GLB autocontido. GLTF pode depender de arquivos .bin e texturas externos. VRM é guardado como original, mas precisa ser convertido para GLB/FBX/OBJ para operações Meshy.</p>
+        <label class="field-label" for="workAssetFile">Enviar acessórios, roupas, cabelos ou referências</label>
+        <div class="row"><select id="workAssetCategory"><option value="accessory">Modelo 3D / acessório</option><option value="reference">Imagem de referência</option><option value="texture">Textura</option></select></div>
+        <input id="workAssetFile" type="file" multiple accept=".glb,.gltf,.fbx,.obj,.stl,.png,.jpg,.jpeg,.webp">
+        <p class="hint">Arquivos permitidos: GLB, glTF, FBX, OBJ, STL, VRM, PNG, JPG e WebP. Limite local de 25 MB por arquivo (imagens: 20 MB). Para gerar cabelo/roupa/acessório por imagem, prefira uma foto recortada que mostre somente a peça desejada.</p>
+        <div class="field simple"><label for="baseModelSelect">Modelo-base ativo</label><select id="baseModelSelect"><option value="">Nenhum modelo enviado</option></select></div>
+        <div class="field simple"><label for="targetAssetSelect">Modelo 3D a processar</label><select id="targetAssetSelect"><option value="">Nenhum modelo enviado</option></select></div>
+        <div class="field simple"><label for="referenceAssetSelect">Imagem de referência (opcional)</label><select id="referenceAssetSelect"><option value="">Nenhuma imagem</option></select></div>
+        <div id="workAssetList" class="asset-list"><p class="hint">Nenhum arquivo enviado ainda.</p></div>
+      </div>
+      <div class="card">
+        <h3>3. Conectar IA (Meshy)</h3>
+        <p class="hint">A chave é enviada somente ao servidor local e mantida na memória enquanto o Studio estiver aberto. Não é salva no preset, navegador ou ZIP. Quando você iniciar uma tarefa, os arquivos escolhidos e a descrição serão enviados à API Meshy.</p>
+        <div class="row"><input id="meshyKey" type="password" autocomplete="off" placeholder="Cole sua chave da API Meshy"><button id="btnMeshyKey">Conectar</button></div>
+        <p id="meshyStatus" class="hint">Verificando conexão…</p>
+        <p class="hint warning">A criação de tarefas pode consumir créditos pagos da sua conta Meshy. O Studio só envia uma tarefa quando você clica em um botão e confirma. Envie apenas arquivos que você tem direito de compartilhar com o provedor.</p>
+      </div>
+      <div class="card">
+        <h3>4. O que deseja criar ou alterar?</h3>
+        <div class="field simple"><label for="aiAssetKind">Tipo de resultado</label>
+          <select id="aiAssetKind"><option value="hair">Cabelo / penteado</option><option value="clothing">Roupa / calçado</option><option value="accessory" selected>Acessório</option><option value="character">Personagem completo (modelo separado)</option></select>
+        </div>
+        <label class="field-label" for="aiPrompt">Descreva o que deseja</label>
+        <textarea id="aiPrompt" rows="4" maxlength="620" placeholder="Ex.: cabelo anime roxo longo, com mechas em camadas, franja irregular e pontas definidas; peça isolada, sem cabeça ou corpo."></textarea>
+        <div class="btnrow ai-buttons">
+          <button id="btnAiText" class="primary">Gerar 3D pela descrição</button>
+          <button id="btnAiImage">Gerar 3D pela imagem</button>
+        </div>
+        <div id="aiModelActions">
+          <hr>
+          <p class="hint"><b>Processar uma cópia do modelo selecionado:</b> escolha a base ou um acessório acima. No modo Preservar, somente arquivos classificados como acessório podem ser processados; a base fica bloqueada. Retexturizar altera materiais/texturas; remalhar altera topologia/contagem de faces, não remodela por si só rosto ou corpo.</p>
+          <div class="btnrow"><button id="btnAiRetexture">IA: retexturizar cópia</button><button id="btnAiRemesh">IA: remalhar cópia</button></div>
+        </div>
+        <p class="hint">Os GLBs gerados são arquivos separados. O encaixe automático de roupas/cabelos, transferência de pesos e integração ao esqueleto ainda precisam ser feitos no Blender/Unity.</p>
+        <p id="aiActionMsg" class="hint"></p>
+      </div>
+      <div class="card">
+        <h3>5. Tarefas e resultados</h3>
+        <div id="aiTasks" class="task-list"><p class="hint">Suas tarefas de IA aparecerão aqui.</p></div>
+      </div>
+    </section>
+    <section id="tab-help" class="pane">
+      <div class="card prose">
+        <h3>Do programa ao VRChat</h3>
+        <ol>
+          <li>Monte o avatar aqui (aparência + acessórios) e clique em <b>Exportar pacote</b>.</li>
+          <li>Abra seu projeto Unity com o <b>VRChat SDK (Avatars 3.x)</b> e copie a pasta <code>Unity/Assets/VRChatAvatarStudio</code> para dentro de <code>Assets</code>.</li>
+          <li>No menu do Unity: <b>VRChat Avatar Studio ▸ Importar e configurar tudo</b> e escolha o arquivo <code>.vrcavatar.json</code>.</li>
+          <li>Abra <b>VRChat SDK ▸ Show Control Panel</b>, faça login, e use <b>Build &amp; Publish</b>.</li>
+        </ol>
+        <h3>Acessórios</h3>
+        <ul>
+          <li>Peças do mesmo <b>grupo</b> viram uma só malha: um objeto que liga/desliga no menu do VRChat.</li>
+          <li><b>Espelhar</b> cria a cópia do outro lado (ex.: chifres, pulseiras).</li>
+          <li><b>Balançar</b> dá um PhysBone à peça (sininho, capa, antena).</li>
+          <li>Cada grupo extra conta como uma malha a mais no ranking de desempenho — junte peças em poucos grupos.</li>
+        </ul>
+        <h3>Quero um avatar com acabamento de VRChat</h3>
+        <p>O gerador procedural deste Studio cria uma base estilizada editável. Ele ainda não substitui uma personagem artística com malha esculpida, cabelo modelado e texturas pintadas. Para esse nível de acabamento, use uma base 3D própria e depois prepare o upload no fluxo compatível com VRChat.</p>
+        <ol>
+          <li>Crie o personagem no <a href="https://vroid.com/en/studio" rel="noopener" target="_blank">VRoid Studio</a>, que oferece muitos controles de aparência e pintura manual.</li>
+          <li>Para o fluxo VRChat do VRoid, exporte como <b>XAvatar</b> e importe no Unity com o <b>XWear Packager</b>, seguindo o guia oficial.</li>
+          <li>Use o VRChat SDK para validar o avatar e fazer o Build &amp; Publish.</li>
+        </ol>
+        <p><a href="https://vroid.pixiv.help/hc/en-us/articles/38723570104729-Purpose-Specific-Help-Guide" rel="noopener" target="_blank">Guia oficial VRoid → VRChat</a> · <a href="https://creators.vrchat.com/avatars/creating-your-first-avatar/" rel="noopener" target="_blank">Guia oficial do VRChat</a></p>
+        <p class="hint">Atenção: confira a licença de cada modelo, roupa e acessório. Os modelos de exemplo do VRoid não são automaticamente CC0, e nem todo asset permite redistribuição.</p>
+        <h3>Controles do 3D</h3>
+        <ul><li>Arrastar: girar · Roda: zoom · Shift/botão direito + arrastar: mover · Duplo clique: reiniciar</li></ul>
+      </div>
+    </section>
+  </aside>
+
+  <section class="stage">
+    <canvas id="gl" aria-label="Pré-visualização 3D do avatar"></canvas>
+    <div class="vbar">
+      <button data-view="front">Frente</button><button data-view="three">3/4</button>
+      <button data-view="side">Lado</button><button data-view="back">Costas</button>
+      <button id="btnResetCamera">Recentrar</button>
+      <button id="btnHead" aria-pressed="false">Rosto</button>
+      <label class="chk"><input type="checkbox" id="chkBones"> Esqueleto</label>
+    </div>
+    <div id="busy" class="busy" hidden>Atualizando…</div>
+    <div id="toast" class="toast" hidden></div>
+    <div class="expr" id="exprBox"></div>
+  </section>
+
+  <aside class="right">
+    <div class="card">
+      <div class="rankline"><h3>Desempenho (PC)</h3><span id="rankChip" class="chip">—</span></div>
+      <div id="statRows"></div>
+      <p class="hint">Estimativa local heurística para PC. Não é o ranking oficial: confirme no VRChat SDK Control Panel.</p>
+    </div>
+    <div class="card">
+      <h3>Camadas</h3>
+      <div id="layers"></div>
+    </div>
+    <div class="card" id="issuesCard" hidden>
+      <h3>Verificações</h3>
+      <ul id="issues" class="issues"></ul>
+    </div>
+  </aside>
+</main>
+<script src="/viewer.js"></script>
+<script src="/app.js"></script>
+</body>
+</html>
